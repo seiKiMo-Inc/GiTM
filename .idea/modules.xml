@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/GiTM.iml" filepath="$PROJECT_DIR$/.idea/GiTM.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../MoonlightTS/.idea/MoonlightTS.iml" filepath="$PROJECT_DIR$/../MoonlightTS/.idea/MoonlightTS.iml" />
     </modules>
   </component>
 </project>
