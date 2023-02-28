@@ -1,0 +1,24 @@
+{
+  "name": "gitm",
+  "description": "Anime Game in The Middle",
+  "version": "1.0.0",
+
+  "main": "src/index.ts",
+  "scripts": {
+    "start:dev": "ts-node ."
+  },
+
+  "dependencies": {
+    "tslog": "^3.3.4",
+
+    "protobufjs": "^7.2.2",
+    "node-kcp-x": "^1.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5",
+    "@types/node": "^18.14.2",
+
+    "prettier": "^2.8.4",
+    "tsconfig-paths": "^3.14.2"
+  }
+}
