@@ -1,3 +1,5 @@
+import type { PacketIds } from "@app/types";
+
 /**
  * Parses a packet sent by the client.
  * @param packet The packet to parse.
@@ -47,4 +49,27 @@ export function xor(packet: Buffer, key: Buffer): void {
     for (let i = 0; i < packet.length; i++) {
         packet[i] ^= key[i % key.length];
     }
+}
+
+/**
+ * Reads the packet IDs from a CSV file.
+ * @param data The CSV file to read.
+ * @param backwards Whether to read the file backwards.
+ */
+export function readPacketIds(data: string, backwards = false): PacketIds {
+    // Split the data into lines.
+    const lines = data.split("\n");
+    // Parse the lines into an object.
+    const object: PacketIds = {};
+    lines.forEach(line => {
+        // Parse the line.
+        const [name, id] = line.split(",");
+        // Add the line to the object.
+        if (backwards)
+            object[id] = name;
+        else
+            object[name] = id;
+    });
+
+    return object;
 }

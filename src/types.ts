@@ -6,6 +6,8 @@ export type NetworkInfo = {
     id: string;
 };
 
+export type PacketIds = { [key: string|number]: number|string };
+
 export class Handshake {
     static MAGIC_CONNECT = [0xFF, 0xFFFFFFFF];
     static INITIALIZE = [0x145, 0x14514545];

@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { readPacketIds } from "@app/utils";
 
 /**
  * Fetches an environment variable or returns a fallback value.
@@ -34,7 +35,9 @@ export const logger = {
 };
 
 export const network = {
-    port: $n("PORT", 22102)
+    port: $n("PORT", 22102),
+    two: readPacketIds(fs.readFileSync("resources/protos/two/cmdid.csv").toString(), false),
+    three: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), true),
 };
 
 export const keys = {
