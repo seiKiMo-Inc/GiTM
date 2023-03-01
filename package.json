@@ -12,7 +12,7 @@
     "tslog": "^3.3.4",
 
     "protobufjs": "^7.2.2",
-    "node-kcp-x": "^1.1.2"
+    "kcp-ts": "github:timing1337/kcp-ts"
   },
   "devDependencies": {
     "typescript": "^4.9.5",
