@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import { readPacketIds } from "@app/utils";
+import { Protocol } from "@app/types";
 
 /**
  * Fetches an environment variable or returns a fallback value.
@@ -36,8 +37,30 @@ export const logger = {
 
 export const network = {
     port: $n("PORT", 22102),
+    server: {
+        address: $("SERVER_ADDRESS", "127.0.0.1"),
+        port: $n("SERVER_PORT", 22101)
+    },
     two: readPacketIds(fs.readFileSync("resources/protos/two/cmdid.csv").toString(), false),
-    three: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), true),
+    three: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), true)
+};
+
+export const protocol = {
+    /* Bindings for GetPlayerTokenReq -> Version */
+    versions: {
+        172: Protocol.REL3_2,
+        179: Protocol.REL3_3
+    },
+    /* Bindings for Protocol -> Packet IDs */
+    bindings: {
+        [Protocol.REL3_2]: network.two,
+        [Protocol.REL3_3]: network.three
+    },
+    /* Bindings for Protocol -> Definitions Root */
+    root: {
+        [Protocol.REL3_2]: "resources/protos/two",
+        [Protocol.REL3_3]: "resources/protos/three"
+    }
 };
 
 export const keys = {

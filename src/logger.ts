@@ -8,10 +8,10 @@ type ConsoleLogger = Logger & {
 const console: ConsoleLogger = new Logger({
     name: "GiTM",
     displayFunctionName: false,
-    minLevel: <TLogLevelName>(constants.level || "info"),
+    minLevel: <TLogLevelName>(constants?.level || "info"),
     dateTimePattern: "hour:minute:second",
     dateTimeTimezone: "America/New_York",
-    displayFilePath: constants.debug ? "hideNodeModulesOnly" : "hidden"
+    displayFilePath: constants?.debug ? "hideNodeModulesOnly" : "hidden"
 });
 
 /* Add the console#log alias. */

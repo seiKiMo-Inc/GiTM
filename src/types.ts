@@ -1,15 +1,35 @@
-import { KCP } from "node-kcp-x";
+import { Kcp } from "kcp-ts";
+
+import console from "@app/logger";
+import { keys } from "@app/constants";
+import { establishClient } from "@app/translate";
 
 export type NetworkInfo = {
     address: string;
     port: number;
+    conv: number;
     id: string;
+};
+
+export type ServerInfo = {
+    client: Kcp; // KCP client to server.
+    encryptKey: Buffer; // Encryption key.
+    initialized: boolean; // Whether handshake has been received.
+    conv: number; // Conversation ID to use.
+    token: number; // Token to use.
+    queue: Buffer[]; // Queue of packets to send.
 };
 
 export type PacketIds = { [key: string|number]: number|string };
 
+export enum Protocol {
+    UNKNOWN = -1,
+    REL3_2 = 0,
+    REL3_3 = 1,
+}
+
 export class Handshake {
-    static MAGIC_CONNECT = [0xFF, 0xFFFFFFFF];
+    static CONNECT = [0xFF, 0xFFFFFFFF];
     static INITIALIZE = [0x145, 0x14514545];
     static DISCONNECT = [0x194, 0x19419494];
 
@@ -64,9 +84,48 @@ export class Handshake {
 
 export class Client {
     public post: boolean = false;
+    public protocol: Protocol = -1;
+    public server: ServerInfo = null;
 
     constructor(
-        public readonly handle: KCP,
+        public readonly handle: Kcp,
         public readonly network: NetworkInfo
-    ) { }
+    ) {
+        // Log the connection.
+        console.log(`Client connected: ${network.id}.`);
+
+        // Initialize a server client.
+        establishClient(this);
+    }
+
+    /**
+     * Sends a packet to the server.
+     * @param packet The packet to send.
+     */
+    sendToServer(packet: Buffer): void {
+        if (this.server == null) return;
+
+        // Check if the server is initialized.
+        if (this.server.initialized) {
+            // Forward the packet to the server.
+            this.server.client.send(packet);
+        } else {
+            // Push the packet onto a queue.
+            this.server.queue.push(packet);
+        }
+    }
+
+    /**
+     * Checks if the server is initialized.
+     */
+    get initialized(): boolean {
+        return this.server ? this.server.initialized : false;
+    }
+
+    /**
+     * Returns the appropriate encryption key.
+     */
+    get encryptKey(): Buffer {
+        return this.server ? this.server.encryptKey : keys.initial;
+    }
 }

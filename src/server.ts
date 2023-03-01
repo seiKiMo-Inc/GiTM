@@ -3,7 +3,7 @@ import { network, keys } from "@app/constants";
 import { Client, Handshake } from "@app/types";
 import * as utils from "@app/utils";
 
-import { KCP } from "node-kcp-x";
+import { Kcp } from "kcp-ts";
 import type { RemoteInfo } from "node:dgram";
 
 const kcpTokens: { [key: string]: number } = {};
@@ -12,7 +12,8 @@ const outTokens: { [key: string]: number } = {};
 
 /* Create an IPv4 UDP socket. */
 import { createSocket } from "node:dgram";
-const socket = createSocket("udp4");
+import { fromClient } from "@app/translate";
+const server = createSocket("udp4");
 
 /**
  * Creates a unique network ID.
@@ -52,6 +53,19 @@ function doHandshake(id: string, data: Buffer, type: number): Handshake {
 }
 
 /**
+ * Sends data to a client.
+ * @param remote The location to send the data to.
+ * @param data The data to send.
+ */
+function sendToClient(remote: RemoteInfo, data: Buffer): void {
+    if (data == undefined) return;
+
+    // Forward the data to the client.
+    server.send(data, 0, data.byteLength,
+        remote.port, remote.address);
+}
+
+/**
  * Handles an incoming message.
  */
 async function handleMessage(msg: Buffer, remote: RemoteInfo) {
@@ -63,35 +77,32 @@ async function handleMessage(msg: Buffer, remote: RemoteInfo) {
         const handshake = doHandshake(id, buffer, buffer.readInt32BE(0));
         const response = handshake.encode();
 
-        console.debug(`handshake from ${id}`);
-
-        return socket.send(response, 0,
+        return server.send(response, 0,
             response.byteLength, remote.port, remote.address);
     }
 
-    console.debug(`message from ${id}`)
-
     // Get the connected client.
     const client = connected[id] ?? (() => {
-        const kcp = new KCP(buffer.readUInt32LE(0), remote);
-        kcp.nodelay(1, 10, 2, 1);
-        kcp.output(() => null);
-        return connected[id] = new Client(kcp, { ...remote, id });
+        const conv = buffer.readUInt32LE(0);
+        // Initialize a KCP client handler.
+        const kcp = new Kcp(conv, 0, (data: Buffer) =>
+            sendToClient(remote, data));
+        return connected[id] = new Client(kcp, { ...remote, id, conv });
     })();
 
     // Read the output token for the client.
-    const outToken = outTokens[id] = buffer.readUInt32LE(4);
+    outTokens[id] = buffer.readUInt32LE(4);
     // Update the KCP connection with the received data.
     client.handle.input(utils.readPacket(buffer));
     client.handle.update(Date.now());
 
     // Handle a received KCP message.
-    const packet = client.handle.recv();
-    if (packet == undefined) return;
-    console.log(`received packet from ${id}`)
+    const recvBuffer = Buffer.alloc(0x20000);
+    const packet = client.handle.recv(recvBuffer);
+    if (packet < 0) return;
 
     // Duplicate the packet.
-    const data = Buffer.from(packet);
+    const data = Buffer.from(recvBuffer);
     // Decrypt the packet.
     utils.xor(data, client.post ? keys.post : keys.initial);
 
@@ -105,13 +116,16 @@ async function handleMessage(msg: Buffer, remote: RemoteInfo) {
     const packetId = data.readInt16BE(2);
     const packetData = utils.parsePacket(data);
 
-    console.log(`Received packet: ${packetId}`)
+    // Handle the packet.
+    fromClient(client, packetId, packetData)
+        .catch(err => console.error(err));
 }
 
 /* Set socket event listeners. */
-socket.on("message", handleMessage);
+server.on("message", handleMessage);
 /* Bind to the specified port. */
-socket.bind(network.port, () =>  {
-    const address = socket.address();
-    console.log(`UDP server listening on ${address.address}:${address.port}.`)
+server.bind(network.port, () =>  {
+    const address = server.address();
+    console.log(`UDP server listening on ${address.address}:${address.port}.`);
+    console.log(`Sending packets to ${network.server.address}:${network.server.port}.`);
 });
