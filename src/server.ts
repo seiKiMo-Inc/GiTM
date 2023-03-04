@@ -3,7 +3,7 @@ import { network, keys } from "@app/constants";
 import { Client, Handshake } from "@app/types";
 import * as utils from "@app/utils";
 
-import { Kcp } from "kcp-ts";
+import { getConv, getToken, Kcp } from "kcp-ts";
 import type { RemoteInfo } from "node:dgram";
 
 const kcpTokens: { [key: string]: number } = {};
@@ -13,7 +13,7 @@ const outTokens: { [key: string]: number } = {};
 /* Create an IPv4 UDP socket. */
 import { createSocket } from "node:dgram";
 import { fromClient } from "@app/translate";
-const server = createSocket("udp4");
+export const server = createSocket("udp4");
 
 /**
  * Creates a unique network ID.
@@ -61,8 +61,7 @@ function sendToClient(remote: RemoteInfo, data: Buffer): void {
     if (data == undefined) return;
 
     // Forward the data to the client.
-    server.send(data, 0, data.byteLength,
-        remote.port, remote.address);
+    server.send(data, remote.port, remote.address);
 }
 
 /**
@@ -77,47 +76,71 @@ async function handleMessage(msg: Buffer, remote: RemoteInfo) {
         const handshake = doHandshake(id, buffer, buffer.readInt32BE(0));
         const response = handshake.encode();
 
-        return server.send(response, 0,
-            response.byteLength, remote.port, remote.address);
+        return server.send(response, remote.port, remote.address);
     }
 
     // Get the connected client.
     const client = connected[id] ?? (() => {
-        const conv = buffer.readUInt32LE(0);
+        const conv = getConv(buffer);
+        const token = getToken(buffer);
+
         // Initialize a KCP client handler.
-        const kcp = new Kcp(conv, 0, (data: Buffer) =>
-            sendToClient(remote, data));
-        return connected[id] = new Client(kcp, { ...remote, id, conv });
+        const kcp = new Kcp(conv, token, (data: Buffer) => {
+            const buffer = Buffer.from(data); // Create a copy of the buffer.
+            sendToClient(remote, buffer); // Send the data to the client.
+        });
+        return connected[id] = new Client(kcp, { ...remote, id, conv },
+            (data: Buffer) => sendToClient(remote, data));
     })();
 
     // Read the output token for the client.
-    outTokens[id] = buffer.readUInt32LE(4);
+    outTokens[id] = getToken(buffer);
     // Update the KCP connection with the received data.
-    client.handle.input(utils.readPacket(buffer));
-    client.handle.update(Date.now());
+    const result = client.handle.input(buffer);
+    if (result < 0) {
+        const kcp = client.handle;
+        console.warn(`KCP input error: ${result}.`);
+        console.info(buffer.length, kcp.conv, kcp.token,
+            getConv(buffer), getToken(buffer));
+        return;
+    }
 
     // Handle a received KCP message.
-    const recvBuffer = Buffer.alloc(0x20000);
+    const size = client.handle.peekSize();
+    if (size < 0) return;
+
+    const recvBuffer = Buffer.alloc(size);
     const packet = client.handle.recv(recvBuffer);
     if (packet < 0) return;
 
     // Duplicate the packet.
     const data = Buffer.from(recvBuffer);
+
     // Decrypt the packet.
-    utils.xor(data, client.post ? keys.post : keys.initial);
+    utils.xor(data, client.encryptKey);
 
     // Validate the packet.
-    if (!(
-        data.length > 5 && data.readInt16BE(0) == 0x4567 &&
-        data.readUInt16BE(data.byteLength - 2) == 0x89AB
-    )) return;
+    if (!utils.isValidPacket(data)) {
+        // Re-do the XOR.
+        utils.xor(data, client.encryptKey);
+        // Attempt to XOR with the initial key.
+        utils.xor(data, keys.initial);
+        // Check if the packet is valid.
+        if (utils.isValidPacket(data)) {
+            console.warn("The server hasn't switched keys yet!");
+        } else {
+            console.warn("Invalid packet received from client.");
+            return;
+        }
+    }
 
     // Read the packet's data.
     const packetId = data.readInt16BE(2);
     const packetData = utils.parsePacket(data);
+    const packetHeader = utils.parseHeader(data);
 
     // Handle the packet.
-    fromClient(client, packetId, packetData)
+    fromClient(client, packetId, packetData, packetHeader)
         .catch(err => console.error(err));
 }
 

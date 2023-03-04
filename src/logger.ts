@@ -8,7 +8,7 @@ type ConsoleLogger = Logger & {
 const console: ConsoleLogger = new Logger({
     name: "GiTM",
     displayFunctionName: false,
-    minLevel: <TLogLevelName>(constants?.level || "info"),
+    minLevel: <TLogLevelName>(constants?.level || "debug"),
     dateTimePattern: "hour:minute:second",
     dateTimeTimezone: "America/New_York",
     displayFilePath: constants?.debug ? "hideNodeModulesOnly" : "hidden"

@@ -44,6 +44,15 @@ export function parsePacket(packet: Buffer): Buffer {
 }
 
 /**
+ * Parses a packet into a packet header.
+ * @param packet The packet to parse.
+ */
+export function parseHeader(packet: Buffer): Buffer {
+    const metadataSize = packet.readUInt16BE(4);
+    return packet.slice(10, 10 + metadataSize);
+}
+
+/**
  * Formats a protocol buffer into a packet.
  * @param packet The packet to format.
  * @param token The token to use.
@@ -73,9 +82,12 @@ export function formatPacket(packet: Buffer, token: number): Buffer {
  * @param packet The packet to encode.
  * @param id The ID of the packet.
  * @param key The key to encrypt with.
+ * @param header The packet head to use.
  */
-export async function encodePacket(packet: Buffer, id: number, key: Buffer): Promise<Buffer> {
-    const packetHead = await toProto({ sent_ms: Date.now() }, "PacketHead", Protocol.REL3_2);
+export async function encodePacket(
+    packet: Buffer, id: number, key: Buffer, header?: Buffer
+): Promise<Buffer> {
+    const packetHead = header ?? await toProto({ sent_ms: Date.now() }, "PacketHead", Protocol.REL3_2);
     const footer = Buffer.from(0x89AB.toString(16), "hex");
     const metadata = Buffer.alloc(10);
 
@@ -120,9 +132,8 @@ export function splitPackets(data: Buffer, length = 28): Buffer[] {
  * @param key The key to XOR with.
  */
 export function xor(packet: Buffer, key: Buffer): void {
-    for (let i = 0; i < packet.length; i++) {
+    for (let i = 0; i < packet.length; i++)
         packet[i] ^= key[i % key.length];
-    }
 }
 
 /**
@@ -200,4 +211,14 @@ export async function toProto(
     } catch (err) {
         console.error(err); return null;
     }
+}
+
+/**
+ * Validates a packet.
+ * @param packet The packet to validate.
+ */
+export function isValidPacket(packet: Buffer): boolean {
+    return packet.length > 5 &&
+        packet.readInt16BE(0) == 0x4567 &&
+        packet.readUInt16BE(packet.byteLength - 2) == 0x89AB;
 }

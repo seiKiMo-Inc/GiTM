@@ -4,9 +4,10 @@
     "target": "es2022",
     "moduleResolution": "Node",
 
-    "inlineSourceMap": true,
     "incremental": true,
+    "inlineSourceMap": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
 
     "baseUrl": "src",
     "paths": {
@@ -14,6 +15,9 @@
     }
   },
   "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "ts-node-dev": {
     "require": ["tsconfig-paths/register"]
   },
   "exclude": [

@@ -31,8 +31,10 @@ function $n(name: string, fallback: number = 0): number {
 }
 
 export const logger = {
-    level: $("LOG_LEVEL", "info"),
-    debug: $b("LOG_DEBUG", false)
+    level: $("LOG_LEVEL", "debug"),
+    debug: $b("LOG_DEBUG", false),
+
+    blacklist: ["PingReq", "PingRsp"]
 };
 
 export const network = {
@@ -41,8 +43,14 @@ export const network = {
         address: $("SERVER_ADDRESS", "127.0.0.1"),
         port: $n("SERVER_PORT", 22101)
     },
-    two: readPacketIds(fs.readFileSync("resources/protos/two/cmdid.csv").toString(), false),
-    three: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), true)
+    two: {
+        forwards: readPacketIds(fs.readFileSync("resources/protos/two/cmdid.csv").toString(), false),
+        backwards: readPacketIds(fs.readFileSync("resources/protos/two/cmdid.csv").toString(), true)
+    },
+    three: {
+        forwards: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), false),
+        backwards: readPacketIds(fs.readFileSync("resources/protos/three/cmdid.csv").toString(), true)
+    }
 };
 
 export const protocol = {
@@ -54,7 +62,7 @@ export const protocol = {
     /* Bindings for Protocol -> Packet IDs */
     bindings: {
         [Protocol.REL3_2]: network.two,
-        [Protocol.REL3_3]: network.three
+        [Protocol.REL3_3]: network.three,
     },
     /* Bindings for Protocol -> Definitions Root */
     root: {
@@ -65,5 +73,11 @@ export const protocol = {
 
 export const keys = {
     initial: Buffer.from(fs.readFileSync("resources/keys/initial.b64").toString(), "base64"),
-    post: Buffer.from(fs.readFileSync("resources/keys/post.b64").toString(), "base64")
+    post_gc: fs.readFileSync("resources/keys/post-gc.bin")
 };
+
+export const account = {
+    override: $b("ACCOUNT_OVERRIDE", false),
+    accountId: $("ACCOUNT_ID", "1"),
+    accountToken: $("ACCOUNT_TOKEN", "1"),
+}
